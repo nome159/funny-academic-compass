@@ -951,6 +951,14 @@ main {
   text-align: center;
 }
 
+.poster-disclaimer {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .type-summary,
 .radar-section {
   min-height: 440px;

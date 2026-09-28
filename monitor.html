@@ -148,7 +148,8 @@
         </div>
       </div>
       <p class="hint" id="configHint">
-        留空日期表示统计全部。看板用 JSONP 读取，因此不受跨域限制；口令只保存在本机浏览器里。
+        留空日期表示统计全部。看板用 JSONP 读取，因此不受跨域限制；口令只保存在本机浏览器里，不会写到任何地方。<br>
+        采集端地址通常已自动填好（读自同目录的 collect-config.js）；口令就是 Apps Script 里 <code>CONFIG.adminToken</code> 的值。
       </p>
     </div>
     <p class="status" id="status">尚未读取数据。先填好采集端地址与口令，再点「读取远端数据」。</p>
@@ -223,6 +224,15 @@
   </section>
 
   <section class="table-card" style="margin-top:14px">
+    <h2>邮箱订阅</h2>
+    <p class="table-note" id="emailNote">来自结果页的「填写您的邮箱」表单。</p>
+    <table>
+      <thead><tr><th>邮箱</th><th>提交时间</th><th>结果类型</th></tr></thead>
+      <tbody id="emailRows"></tbody>
+    </table>
+  </section>
+
+  <section class="table-card" style="margin-top:14px">
     <h2>最近事件</h2>
     <table>
       <thead><tr><th>时间</th><th>事件</th><th>详情</th><th>访客</th></tr></thead>
@@ -249,6 +259,9 @@
   </footer>
 </main>
 
+<!-- 采集端地址的唯一定义处。看板与测试页共用它，改一处即可，不用两边同步。
+     加载失败（本地单独拷走本文件）时下面会自动退回到空值，不影响其他功能。 -->
+<script src="collect-config.js"></script>
 <script>
 (function () {
   "use strict";
@@ -274,12 +287,23 @@
     return isFinite(n) ? String(n) : "–";
   }
 
+  // 采集端地址的优先级：本机保存 > 网址参数 > collect-config.js 里的定义。
+  // 第三项让「换台电脑打开」也不必再复制那串长网址——它本来就是公开的（测试页里也有），
+  // 真正的密钥只有口令。
+  function defaultSource() {
+    try {
+      return String(window.ACADEMIC_COMPASS_COLLECT_ENDPOINT || "").trim();
+    } catch (error) {
+      return "";
+    }
+  }
+
   function readConfig() {
     var saved = {};
     try { saved = JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { saved = {}; }
     var qs = new URLSearchParams(location.search);
     return {
-      source: saved.source || qs.get("source") || "",
+      source: saved.source || qs.get("source") || defaultSource(),
       token: saved.token || qs.get("token") || "",
       since: saved.since || qs.get("since") || "",
       until: saved.until || qs.get("until") || ""
@@ -399,6 +423,18 @@
       return "<tr><td>" + esc(row.label) + "</td>" +
         '<td class="num">' + num(row.count) + "</td>" +
         '<td class="num">' + pct(row.share) + "</td></tr>";
+    });
+
+    var emails = sum.emailSignups || { total: 0, rows: [] };
+    $("emailNote").textContent = emails.total
+      ? "共 " + emails.total + " 个邮箱（按邮箱去重、最新的在前。完整清单在表格的 " +
+        "academic_compass_email_signup 工作表里。）"
+      : "还没有人留邮箱。该表由结果页的邮箱表单写入，与埋点表分开存放。";
+    $("emailRows").innerHTML = rowsOrEmpty(emails.rows, 3, function (row) {
+      var when = String(row.createdAt || "").replace("T", " ").slice(0, 19);
+      return "<tr><td>" + esc(row.email) + "</td>" +
+        "<td>" + esc(when) + "</td>" +
+        "<td>" + esc(row.typeName || "") + "</td></tr>";
     });
 
     $("recentRows").innerHTML = rowsOrEmpty(s.recent, 4, function (row) {
@@ -548,7 +584,13 @@
     $("toggleConfigBtn").textContent = hidden ? "收起" : "展开";
   });
 
-  if (config.source && config.token) loadRemote();
+  if (config.source && config.token) {
+    loadRemote();
+  } else if (config.source) {
+    setStatus("采集端地址已自动填好（来自 collect-config.js）。只差管理口令——填上再点「读取远端数据」。", "warn");
+  } else {
+    setStatus("尚未读取数据。先填好采集端地址与口令，再点「读取远端数据」。", "warn");
+  }
 })();
 </script>
 </body>

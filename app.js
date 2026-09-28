@@ -238,6 +238,9 @@ const questionContexts = {
 };
 
 const scaleLabels = ["非常不同意", "比较不同意", "不确定", "比较同意", "非常同意"];
+// 结果页免责声明。网页端写在 index.html 的 .poster-disclaimer，导出海报由 createResultPosterBlob 绘制，
+// 两处文案必须保持一致（改一处就要同步另一处）。
+const resultDisclaimerText = "测试结果无明确科学依据，仅供娱乐";
 
 let answers = new Array(questions.length).fill(null);
 let latestResult = null;
@@ -1100,7 +1103,8 @@ async function createResultPosterBlob(result) {
   const width = 1080;
   const heroHeight = 1420;
   const infoHeight = 850;
-  const strengthHeight = 500;
+  // 落款区从 500 加到 600：原来是单行「掌桥科研出品」，现在多一行免责声明。
+  const strengthHeight = 600;
   const height = heroHeight + infoHeight + strengthHeight;
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -1144,10 +1148,13 @@ async function createResultPosterBlob(result) {
 
   drawPosterStrengthWeakness(ctx, result, left, heroHeight + infoHeight + 54, width - 144);
 
+  ctx.textAlign = "center";
   ctx.fillStyle = "#5169db";
   ctx.font = "900 28px Microsoft YaHei, Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("掌桥科研出品", width / 2, height - 54);
+  ctx.fillText("掌桥科研出品", width / 2, height - 110);
+  ctx.fillStyle = "#697184";
+  ctx.font = "800 24px Microsoft YaHei, Arial";
+  ctx.fillText(resultDisclaimerText, width / 2, height - 60);
   ctx.textAlign = "left";
 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.96));
