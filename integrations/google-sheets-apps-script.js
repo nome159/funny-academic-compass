@@ -1,5 +1,6 @@
 const SPREADSHEET_ID = "1cjO0Cn-GY4MEI5tH63YiGaP0a19bDdxzahlsrk_gdnk";
-const SHEET_NAME = "academic_compass_feedback";
+const FEEDBACK_SHEET_NAME = "academic_compass_feedback";
+const ANALYTICS_SHEET_NAME = "academic_compass_events";
 
 const HEADER_KEYS = [
   "eventName", "feedbackId", "createdAt", "selfFit", "typeCode", "typeName",
@@ -41,14 +42,33 @@ const HEADER_LABELS = [
   "页面URL", "来源页面", "设备UA", "语言", "视口", "时区", "量表版本", "48题答案JSON", "完整结果JSON"
 ];
 
+const ANALYTICS_HEADER_KEYS = [
+  "eventName", "analyticsEvent", "eventId", "createdAt", "visitorId", "sessionId",
+  "viewId", "buttonId", "buttonText", "targetView", "questionId", "questionIndex", "answerValue",
+  "typeCode", "typeName", "pageUrl", "path", "referrer", "userAgent", "language", "viewport", "timezone", "extraJson"
+];
+
+const ANALYTICS_HEADER_LABELS = [
+  "事件名称", "事件类型", "事件ID", "时间", "访客ID", "会话ID",
+  "页面", "按钮ID", "按钮文案", "目标页面", "题目ID", "题目序号", "答案值",
+  "结果代码", "结果名称", "页面URL", "路径", "来源页面", "设备UA", "语言", "视口", "时区", "扩展JSON"
+];
+
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
 
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
-    const sheet = getTargetSheet_();
-    ensureHeader_(sheet);
+    if (payload.eventName === "academic_compass_analytics") {
+      const sheet = getTargetSheet_(ANALYTICS_SHEET_NAME);
+      ensureHeader_(sheet, ANALYTICS_HEADER_LABELS);
+      sheet.appendRow(ANALYTICS_HEADER_KEYS.map((key) => normalizeValue_(payload[key])));
+      return json_({ ok: true, eventId: payload.eventId || "" });
+    }
+
+    const sheet = getTargetSheet_(FEEDBACK_SHEET_NAME);
+    ensureHeader_(sheet, HEADER_LABELS);
     sheet.appendRow(HEADER_KEYS.map((key) => normalizeValue_(payload[key])));
     return json_({ ok: true, feedbackId: payload.feedbackId || "" });
   } catch (error) {
@@ -58,15 +78,45 @@ function doPost(e) {
   }
 }
 
-function getTargetSheet_() {
-  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  return spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.insertSheet(SHEET_NAME);
+function doGet(e) {
+  const mode = e.parameter.mode || "";
+  if (mode === "analytics-json") {
+    const sheet = getTargetSheet_(ANALYTICS_SHEET_NAME);
+    ensureHeader_(sheet, ANALYTICS_HEADER_LABELS);
+    return json_({ ok: true, events: readSheetObjects_(sheet) });
+  }
+
+  if (mode === "feedback-json") {
+    const sheet = getTargetSheet_(FEEDBACK_SHEET_NAME);
+    ensureHeader_(sheet, HEADER_LABELS);
+    return json_({ ok: true, feedback: readSheetObjects_(sheet) });
+  }
+
+  return json_({ ok: true, message: "academic compass collector" });
 }
 
-function ensureHeader_(sheet) {
+function getTargetSheet_(sheetName) {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  return spreadsheet.getSheetByName(sheetName) || spreadsheet.insertSheet(sheetName);
+}
+
+function ensureHeader_(sheet, labels) {
   if (sheet.getLastRow() > 0) return;
-  sheet.appendRow(HEADER_LABELS);
+  sheet.appendRow(labels);
   sheet.setFrozenRows(1);
+}
+
+function readSheetObjects_(sheet) {
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const labels = values[0];
+  return values.slice(1).map((row) => {
+    const item = {};
+    labels.forEach((label, index) => {
+      item[label] = row[index];
+    });
+    return item;
+  });
 }
 
 function normalizeValue_(value) {

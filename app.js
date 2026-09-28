@@ -248,12 +248,23 @@ const pendingFeedbackStorageKey = "academicCompassPendingFeedback.v1";
 const playClickStorageKey = "academicCompassPlayClicks.v1";
 const playEventStorageKey = "academicCompassPlayEvents.v1";
 const emailSignupStorageKey = "academicCompassEmailSignups.v1";
+const analyticsStorageKey = "academicCompassAnalyticsEvents.v1";
+const visitorStorageKey = "academicCompassVisitorId.v1";
+const sessionStorageKey = "academicCompassSessionId.v1";
 const feedbackSubmitConfig = {
   endpoint: window.ACADEMIC_COMPASS_FEEDBACK_ENDPOINT || "",
   mode: window.ACADEMIC_COMPASS_FEEDBACK_MODE || "cors",
   method: "POST",
   adapter: window.ACADEMIC_COMPASS_FEEDBACK_ADAPTER || "google-sheets"
 };
+const analyticsSubmitConfig = {
+  endpoint: window.ACADEMIC_COMPASS_ANALYTICS_ENDPOINT || window.ACADEMIC_COMPASS_FEEDBACK_ENDPOINT || "",
+  mode: window.ACADEMIC_COMPASS_ANALYTICS_MODE || window.ACADEMIC_COMPASS_FEEDBACK_MODE || "no-cors",
+  method: "POST"
+};
+const visitorId = getOrCreateStoredId(visitorStorageKey, "V");
+const sessionId = getOrCreateStoredId(sessionStorageKey, "S", sessionStorage);
+let hasTrackedTestStart = false;
 
 const quizForm = document.querySelector("#quizForm");
 const answeredCount = document.querySelector("#answeredCount");
@@ -291,6 +302,117 @@ const shareBackdrop = document.querySelector("#shareBackdrop");
 const shareCloseBtn = document.querySelector("#shareCloseBtn");
 const confirmShareBtn = document.querySelector("#confirmShareBtn");
 
+function getOrCreateStoredId(key, prefix, storage = localStorage) {
+  const existing = storage.getItem(key);
+  if (existing) return existing;
+  const id = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  storage.setItem(key, id);
+  return id;
+}
+
+function loadAnalyticsEvents() {
+  try {
+    return JSON.parse(localStorage.getItem(analyticsStorageKey)) || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function buildAnalyticsPayload(eventName, details = {}) {
+  const now = new Date();
+  return {
+    eventName: "academic_compass_analytics",
+    analyticsEvent: eventName,
+    eventId: `EV-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now.toISOString(),
+    visitorId,
+    sessionId,
+    viewId: details.viewId || document.querySelector(".view.active")?.id || "",
+    buttonId: details.buttonId || "",
+    buttonText: details.buttonText || "",
+    targetView: details.targetView || "",
+    questionId: details.questionId || "",
+    questionIndex: details.questionIndex ?? "",
+    answerValue: details.answerValue ?? "",
+    typeCode: details.typeCode || latestResult?.code || "",
+    typeName: details.typeName || latestResult?.name || "",
+    pageUrl: window.location.href,
+    path: window.location.pathname,
+    referrer: document.referrer || "",
+    userAgent: navigator.userAgent,
+    language: navigator.language,
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+    extraJson: JSON.stringify(details.extra || {})
+  };
+}
+
+async function trackAnalyticsEvent(eventName, details = {}) {
+  const payload = buildAnalyticsPayload(eventName, details);
+  const events = loadAnalyticsEvents();
+  events.push({ ...payload, submitStatus: "local-saved" });
+  localStorage.setItem(analyticsStorageKey, JSON.stringify(events.slice(-500)));
+
+  const submitResult = await submitAnalyticsToRemote(payload);
+  updateStoredAnalyticsStatus(payload.eventId, submitResult);
+  return payload;
+}
+
+function updateStoredAnalyticsStatus(eventId, submitResult) {
+  const events = loadAnalyticsEvents().map((event) => {
+    if (event.eventId !== eventId) return event;
+    return {
+      ...event,
+      submitStatus: submitResult.ok ? "remote-submitted" : "local-saved",
+      submitReason: submitResult.reason,
+      submittedAt: submitResult.submittedAt
+    };
+  });
+  localStorage.setItem(analyticsStorageKey, JSON.stringify(events.slice(-500)));
+}
+
+async function submitAnalyticsToRemote(payload) {
+  const endpoint = analyticsSubmitConfig.endpoint.trim();
+  if (!endpoint) {
+    return { ok: false, reason: "missing-endpoint", submittedAt: null };
+  }
+
+  try {
+    const noCors = analyticsSubmitConfig.mode === "no-cors";
+    const response = await fetch(endpoint, {
+      method: analyticsSubmitConfig.method,
+      mode: noCors ? "no-cors" : "cors",
+      headers: noCors ? { "Content-Type": "text/plain;charset=utf-8" } : { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true
+    });
+
+    if (noCors || response.ok) {
+      return { ok: true, reason: "submitted", submittedAt: new Date().toISOString() };
+    }
+
+    return { ok: false, reason: `http-${response.status}`, submittedAt: null };
+  } catch (error) {
+    return { ok: false, reason: error.name || "network-error", submittedAt: null };
+  }
+}
+
+async function retryPendingAnalytics() {
+  if (!analyticsSubmitConfig.endpoint.trim()) return;
+  const pending = loadAnalyticsEvents().filter((event) => event.submitStatus !== "remote-submitted");
+  for (const event of pending.slice(-50)) {
+    const { submitStatus, submitReason, submittedAt, ...payload } = event;
+    const submitResult = await submitAnalyticsToRemote(payload);
+    updateStoredAnalyticsStatus(event.eventId, submitResult);
+  }
+}
+
+function trackTestStart(source) {
+  if (hasTrackedTestStart) return;
+  hasTrackedTestStart = true;
+  trackAnalyticsEvent("test_start", { viewId: "test", extra: { source } });
+}
+
 function init() {
   totalCount.textContent = String(questions.length);
   renderStyleGallery();
@@ -299,14 +421,27 @@ function init() {
   updateProgress();
   renderEmptyState();
   retryPendingFeedback();
+  retryPendingAnalytics();
+  trackAnalyticsEvent("page_view", { viewId: "home" });
 }
 
 function bindNavigation() {
   document.querySelectorAll("[data-view]").forEach((button) => {
-    button.addEventListener("click", () => showView(button.dataset.view));
+    button.addEventListener("click", () => {
+      trackAnalyticsEvent("tab_click", {
+        buttonText: button.textContent.trim(),
+        targetView: button.dataset.view,
+        viewId: document.querySelector(".view.active")?.id || ""
+      });
+      showView(button.dataset.view);
+    });
   });
 
-  document.querySelector("#startTestBtn").addEventListener("click", () => showView("test"));
+  document.querySelector("#startTestBtn").addEventListener("click", () => {
+    trackTestStart("start_button");
+    trackAnalyticsEvent("button_click", { buttonId: "startTestBtn", buttonText: "开始测试", viewId: "home" });
+    showView("test");
+  });
   prevQuestionBtn.addEventListener("click", goToPreviousQuestion);
   nextQuestionBtn.addEventListener("click", goToNextQuestion);
   feedbackForm.addEventListener("submit", saveFeedback);
@@ -314,7 +449,10 @@ function bindNavigation() {
   shareResultBtn.addEventListener("click", openShareModal);
   viewAllStylesBtn?.addEventListener("click", () => showView("styles"));
   emailForm.addEventListener("submit", saveEmailSignup);
-  enterZqBtn.addEventListener("click", () => window.open("https://www.zhangqiaokeyan.com/", "_blank"));
+  enterZqBtn.addEventListener("click", () => {
+    trackAnalyticsEvent("result_action_click", { buttonId: "enterZqBtn", buttonText: "进入掌桥科研", viewId: "result" });
+    window.open("https://www.zhangqiaokeyan.com/", "_blank");
+  });
   shareBackdrop.addEventListener("click", closeShareModal);
   shareCloseBtn.addEventListener("click", closeShareModal);
   confirmShareBtn.addEventListener("click", shareResultImage);
@@ -330,6 +468,7 @@ function showView(viewId) {
   });
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (viewId === "result") drawRadar(latestResult);
+  trackAnalyticsEvent("view_show", { viewId, typeCode: latestResult?.code || "", typeName: latestResult?.name || "" });
 }
 
 function renderCurrentQuestion() {
@@ -367,6 +506,13 @@ function renderCurrentQuestion() {
     input.checked = answers[currentQuestionIndex] === value;
     input.addEventListener("change", () => {
       answers[currentQuestionIndex] = value;
+      trackTestStart("answer");
+      trackAnalyticsEvent("question_answer", {
+        viewId: "test",
+        questionId: question.id,
+        questionIndex: currentQuestionIndex + 1,
+        answerValue: value
+      });
       updateProgress();
     });
 
@@ -440,6 +586,7 @@ function finishQuiz() {
 
   latestResult = calculateResult();
   renderResult(latestResult);
+  trackAnalyticsEvent("test_complete", { viewId: "result", typeCode: latestResult.code, typeName: latestResult.name });
   showView("result");
 }
 
@@ -645,6 +792,7 @@ async function saveFeedback(event) {
   }
 
   const feedback = buildFeedbackPayload();
+  trackAnalyticsEvent("result_action_click", { buttonId: "feedbackSubmit", buttonText: "保存反馈", viewId: "result" });
   const submitButton = feedbackForm.querySelector("button[type='submit']");
   submitButton.disabled = true;
   feedbackMessage.textContent = "正在保存反馈...";
@@ -669,6 +817,7 @@ async function saveEmailSignup(event) {
   event.preventDefault();
   const email = emailInput.value.trim();
   if (!email) return;
+  trackAnalyticsEvent("result_action_click", { buttonId: "emailSubmit", buttonText: "提交邮箱", viewId: "result" });
 
   const signup = {
     eventName: "academic_compass_email_signup",
@@ -869,6 +1018,7 @@ async function saveResultImage() {
     return;
   }
 
+  trackAnalyticsEvent("result_action_click", { buttonId: "saveResultBtn", buttonText: "保存结果", viewId: "result" });
   latestPosterBlob = await createResultPosterBlob(latestResult);
   const url = URL.createObjectURL(latestPosterBlob);
   const link = document.createElement("a");
@@ -885,6 +1035,7 @@ function openShareModal() {
     return;
   }
 
+  trackAnalyticsEvent("result_action_click", { buttonId: "shareResultBtn", buttonText: "分享", viewId: "result" });
   shareCopyText.textContent = `我的学术风格是${latestResult.name}，来测测你的吧`;
   shareModal.hidden = false;
 }
@@ -899,6 +1050,7 @@ async function shareResultImage() {
     return;
   }
 
+  trackAnalyticsEvent("share_confirm", { buttonId: "confirmShareBtn", buttonText: "分享", viewId: "result" });
   const shareText = `我的学术风格是${latestResult.name}，来测测你的吧`;
   const shareUrl = window.location.href;
 
