@@ -3,508 +3,553 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>学术罗盘监控后台</title>
+  <title>学术罗盘 · 数据监控台</title>
   <style>
     :root {
       --paper: #fff7eb;
       --ink: #24243a;
-      --muted: #697184;
-      --line: #e5dce0;
+      --muted: #6b7285;
+      --line: #e6dccd;
+      --card: #fffdf8;
       --blue: #5169db;
       --teal: #15988f;
       --coral: #e95f58;
       --gold: #d9911f;
-      --white: #fffdf8;
-      --shadow: 0 18px 42px rgba(81, 105, 219, 0.1);
+      --shadow: 0 14px 34px rgba(81, 105, 219, 0.09);
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        linear-gradient(115deg, rgba(255, 240, 189, 0.72) 0 18%, transparent 18% 100%),
-        linear-gradient(245deg, rgba(230, 235, 255, 0.86) 0 22%, transparent 22% 100%),
-        linear-gradient(135deg, #fffaf2 0%, #f7fbff 48%, #fff4ef 100%);
       color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(255, 224, 150, 0.55), transparent 26rem),
+        radial-gradient(circle at 88% 6%, rgba(186, 210, 255, 0.5), transparent 24rem),
+        linear-gradient(135deg, #fffaf2 0%, #f6fbff 52%, #fff4ef 100%);
       font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
     }
+    main { width: min(1180px, calc(100% - 28px)); margin: 0 auto; padding: 30px 0 64px; }
 
-    main {
-      width: min(1180px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 36px 0 72px;
-    }
+    header.page-head { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; justify-content: space-between; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.05; letter-spacing: -0.5px; }
+    .subtitle { margin: 10px 0 0; color: var(--muted); font-weight: 700; line-height: 1.6; font-size: 14px; }
+    .badge { display: inline-block; border: 1px solid #ead8c8; background: rgba(255, 255, 255, 0.8); border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 700; }
 
-    header {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 22px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(34px, 6vw, 62px);
-      line-height: 1;
-    }
-
-    .subtitle {
-      margin: 12px 0 0;
-      color: var(--muted);
-      font-weight: 700;
-      line-height: 1.6;
-    }
-
-    .panel,
-    .metric-card,
-    .table-card {
+    .panel, .card, .table-card {
       border: 1px solid rgba(81, 105, 219, 0.14);
-      border-radius: 10px;
-      background: rgba(255, 253, 248, 0.92);
+      border-radius: 12px;
+      background: rgba(255, 253, 248, 0.94);
       box-shadow: var(--shadow);
     }
+    .panel { padding: 16px; margin-bottom: 18px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .panel h2 { margin: 0; font-size: 17px; }
+    .hint { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
 
-    .panel {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
-      gap: 10px;
-      align-items: end;
-      padding: 16px;
-      margin-bottom: 18px;
-    }
-
-    label {
-      display: grid;
-      gap: 7px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 900;
-    }
-
+    .config-grid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr); gap: 12px; }
+    .config-grid + .config-grid { margin-top: 12px; }
+    label.field { display: grid; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
     input {
-      width: 100%;
-      min-height: 42px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--white);
-      color: var(--ink);
-      padding: 9px 12px;
-      font: inherit;
+      width: 100%; min-height: 42px; border: 1px solid var(--line); border-radius: 9px;
+      background: #fff; color: var(--ink); padding: 9px 12px; font: inherit;
     }
+    input:focus { outline: 2px solid rgba(81, 105, 219, 0.28); outline-offset: 1px; border-color: var(--blue); }
 
-    button,
-    .link-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 42px;
-      padding: 0 16px;
-      border: 0;
-      border-radius: 8px;
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      min-height: 42px; padding: 0 16px; border: 0; border-radius: 9px;
       background: linear-gradient(135deg, var(--blue), #6c55b8);
-      color: var(--white);
-      font: inherit;
-      font-weight: 900;
-      text-decoration: none;
-      cursor: pointer;
+      color: #fffdf8; font: inherit; font-weight: 700; cursor: pointer;
     }
+    button.secondary { border: 1px solid rgba(81, 105, 219, 0.2); background: #fff; color: var(--ink); }
+    button.ghost { border: 1px dashed rgba(81, 105, 219, 0.3); background: transparent; color: var(--muted); font-weight: 700; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    .secondary {
-      border: 1px solid rgba(81, 105, 219, 0.18);
-      background: var(--white);
-      color: var(--ink);
+    .status { margin-top: 12px; font-size: 13px; color: var(--muted); font-weight: 700; }
+    .status.ok { color: var(--teal); }
+    .status.warn { color: var(--gold); }
+    .status.err { color: var(--coral); }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .card { padding: 16px; min-height: 108px; }
+    .card .label { font-size: 13px; color: var(--muted); font-weight: 700; }
+    .card .num { margin-top: 10px; font-size: clamp(26px, 3.4vw, 38px); font-weight: 800; line-height: 1.1; }
+    .card .sub { margin-top: 6px; font-size: 12px; color: var(--muted); }
+    .card.accent-teal .num { color: var(--teal); }
+    .card.accent-coral .num { color: var(--coral); }
+    .card.accent-gold .num { color: var(--gold); }
+
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .table-card { margin-top: 0; padding: 16px; }
+    .table-card h2 { margin: 0 0 4px; font-size: 16px; }
+    .table-card .table-note { margin: 0 0 12px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #f0e7d9; vertical-align: top; }
+    th { color: var(--muted); font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .empty { color: #9a92a0; padding: 12px 0; font-size: 13px; }
+    .tag { display: inline-block; margin-left: 6px; border-radius: 999px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
+    .tag.warn { background: rgba(217, 145, 31, 0.15); color: #8a5b06; }
+    .tag.ok { background: rgba(21, 152, 143, 0.14); color: #0d6a63; }
+    .bar { position: relative; height: 6px; border-radius: 999px; background: rgba(81, 105, 219, 0.12); overflow: hidden; min-width: 56px; }
+    .bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--blue), #8a7be0); }
+
+    footer { margin-top: 26px; color: var(--muted); font-size: 12.5px; line-height: 1.75; }
+
+    @media (max-width: 980px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .two { grid-template-columns: 1fr; }
+      .config-grid { grid-template-columns: 1fr 1fr; }
     }
-
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .metric-card {
-      padding: 18px;
-    }
-
-    .metric-card span {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 900;
-    }
-
-    .metric-card strong {
-      display: block;
-      margin-top: 8px;
-      font-size: clamp(32px, 5vw, 52px);
-      line-height: 1;
-    }
-
-    .metric-card small {
-      display: block;
-      margin-top: 10px;
-      color: var(--muted);
-      line-height: 1.45;
-    }
-
-    .tables {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .table-card {
-      overflow: hidden;
-    }
-
-    .table-card h2 {
-      margin: 0;
-      padding: 16px 18px 10px;
-      font-size: 22px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th,
-    td {
-      padding: 12px 18px;
-      border-top: 1px solid rgba(81, 105, 219, 0.1);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 900;
-      white-space: nowrap;
-    }
-
-    td {
-      font-weight: 800;
-    }
-
-    .status {
-      min-height: 22px;
-      margin: 10px 0 0;
-      color: var(--muted);
-      font-weight: 800;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 24px;
-      padding: 0 8px;
-      border-radius: 999px;
-      background: #e6ebff;
-      color: var(--blue);
-      font-size: 12px;
-      font-weight: 900;
-    }
-
-    @media (max-width: 860px) {
-      header,
-      .panel {
-        grid-template-columns: 1fr;
-        align-items: stretch;
-      }
-
-      .metrics,
-      .tables {
-        grid-template-columns: 1fr;
-      }
+    @media (max-width: 560px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .config-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <main>
-    <header>
-      <div>
-        <p class="pill">Academic Compass Analytics</p>
-        <h1>监控后台</h1>
-        <p class="subtitle">监控页面访问量、参与测试 UV、完成测试 UV，以及结果页按钮和页面 tab 的点击人数/次数。</p>
+<main>
+  <header class="page-head">
+    <div>
+      <span class="badge">掌桥科研 · 学术罗盘</span>
+      <h1>数据监控台</h1>
+      <p class="subtitle">页面浏览量 · 参与测试 UV · 完成测试 UV · 结果页与 Tab 点击 UV 及点击率</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>数据源</h2>
+      <button type="button" class="ghost" id="toggleConfigBtn">收起</button>
+    </div>
+    <div id="configBody">
+      <div class="config-grid">
+        <label class="field">采集端地址（Apps Script 的 /exec 网址）
+          <input id="sourceInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" spellcheck="false">
+        </label>
+        <label class="field">管理口令
+          <input id="tokenInput" type="password" placeholder="与脚本 CONFIG.adminToken 一致" autocomplete="off">
+        </label>
+        <label class="field">起始日期
+          <input id="sinceInput" type="date">
+        </label>
+        <label class="field">截止日期
+          <input id="untilInput" type="date">
+        </label>
       </div>
-      <a class="link-btn secondary" href="./index.html">返回测试页</a>
-    </header>
+      <div class="config-grid">
+        <div class="actions">
+          <button type="button" id="loadRemoteBtn">读取远端数据</button>
+          <button type="button" class="secondary" id="loadLocalBtn">读取本机调试数据</button>
+          <button type="button" class="secondary" id="sendTestBtn">发送测试事件</button>
+          <button type="button" class="ghost" id="saveConfigBtn">保存为默认</button>
+        </div>
+      </div>
+      <p class="hint" id="configHint">
+        留空日期表示统计全部。看板用 JSONP 读取，因此不受跨域限制；口令只保存在本机浏览器里。
+      </p>
+    </div>
+    <p class="status" id="status">尚未读取数据。先填好采集端地址与口令，再点「读取远端数据」。</p>
+  </section>
 
-    <section class="panel" aria-label="数据源设置">
-      <label>
-        Google Sheet CSV 或 Apps Script JSON 数据源
-        <input id="sourceInput" placeholder="粘贴发布为 CSV 的 Google Sheet 地址，或 Apps Script ?mode=analytics-json 地址">
-      </label>
-      <button type="button" id="loadBtn">加载数据</button>
-      <button class="secondary" type="button" id="localBtn">看本机数据</button>
-    </section>
-    <p class="status" id="statusText">未配置远程数据源时，可先点击“看本机数据”验证埋点是否正常。</p>
+  <div id="remoteSections">
+  <section class="kpi-grid" id="kpiGrid">
+    <article class="card"><div class="label">页面访问量 PV</div><div class="num" id="kpiPv">–</div><div class="sub" id="kpiPvSub">&nbsp;</div></article>
+    <article class="card"><div class="label">页面访问 UV</div><div class="num" id="kpiViewUv">–</div><div class="sub" id="kpiViewUvSub">&nbsp;</div></article>
+    <article class="card accent-teal"><div class="label">参与测试 UV</div><div class="num" id="kpiTestUv">–</div><div class="sub" id="kpiTestUvSub">&nbsp;</div></article>
+    <article class="card accent-coral"><div class="label">完成测试 UV</div><div class="num" id="kpiCompleteUv">–</div><div class="sub" id="kpiCompleteUvSub">&nbsp;</div></article>
+    <article class="card accent-gold"><div class="label">完成率</div><div class="num" id="kpiCompleteRate">–</div><div class="sub">完成 UV ÷ 参与 UV</div></article>
+  </section>
 
-    <section class="metrics">
-      <article class="metric-card">
-        <span>页面访问量 PV</span>
-        <strong id="pvMetric">0</strong>
-        <small>统计 page_view 事件总数</small>
-      </article>
-      <article class="metric-card">
-        <span>访问 UV</span>
-        <strong id="uvMetric">0</strong>
-        <small>访问过页面的独立访客数</small>
-      </article>
-      <article class="metric-card">
-        <span>参与测试 UV</span>
-        <strong id="testUvMetric">0</strong>
-        <small>触发开始测试 / 答题 / 完成测试的独立访客</small>
-      </article>
-      <article class="metric-card">
-        <span>完成测试 UV</span>
-        <strong id="completeUvMetric">0</strong>
-        <small>到达结果页并生成结果的独立访客</small>
-      </article>
-    </section>
+  <section class="two" style="margin-top:14px">
+    <article class="table-card">
+      <h2>结果页交互</h2>
+      <p class="table-note">点击率 = 点击 UV ÷ 完成测试 UV。只有走完测试的人才会看到结果页，所以用完成 UV 作分母。</p>
+      <table>
+        <thead><tr><th>元素</th><th class="num">点击 UV</th><th class="num">点击次数</th><th class="num">点击率</th><th class="num">占位</th></tr></thead>
+        <tbody id="resultActionRows"></tbody>
+      </table>
+    </article>
 
-    <section class="tables">
-      <article class="table-card">
-        <h2>结果页按钮点击</h2>
-        <table>
-          <thead>
-            <tr><th>按钮</th><th>点击人数</th><th>点击次数</th></tr>
-          </thead>
-          <tbody id="resultActionRows"></tbody>
-        </table>
-      </article>
+    <article class="table-card">
+      <h2>Tab 与页面跳转</h2>
+      <p class="table-note">点击 UV 来自 tab_click；到达 UV 来自 view_show，即真正进入了该页面的人数。</p>
+      <table>
+        <thead><tr><th>页面 / Tab</th><th class="num">点击 UV</th><th class="num">点击次数</th><th class="num">到达 UV</th><th class="num">点击率</th></tr></thead>
+        <tbody id="viewRows"></tbody>
+      </table>
+    </article>
+  </section>
 
-      <article class="table-card">
-        <h2>页面 / Tab 点击</h2>
-        <table>
-          <thead>
-            <tr><th>目标页面</th><th>点击人数</th><th>点击次数</th></tr>
-          </thead>
-          <tbody id="tabRows"></tbody>
-        </table>
-      </article>
+  <section class="two" style="margin-top:14px">
+    <article class="table-card">
+      <h2>结果类型分布</h2>
+      <p class="table-note">占完成测试 UV 的比例。</p>
+      <table>
+        <thead><tr><th>学术风格</th><th class="num">人数 UV</th><th class="num">占比</th></tr></thead>
+        <tbody id="typeRows"></tbody>
+      </table>
+    </article>
 
-      <article class="table-card">
-        <h2>结果类型分布</h2>
-        <table>
-          <thead>
-            <tr><th>类型</th><th>人数</th><th>占比</th></tr>
-          </thead>
-          <tbody id="typeRows"></tbody>
-        </table>
-      </article>
+    <article class="table-card">
+      <h2>来源分布</h2>
+      <p class="table-note">按页面访问 UV 归属，用于判断传播渠道效果。</p>
+      <table>
+        <thead><tr><th>来源</th><th class="num">访问 UV</th><th class="num">占比</th></tr></thead>
+        <tbody id="sourceRows"></tbody>
+      </table>
+    </article>
+  </section>
 
-      <article class="table-card">
-        <h2>最近事件</h2>
-        <table>
-          <thead>
-            <tr><th>时间</th><th>事件</th><th>访客</th></tr>
-          </thead>
-          <tbody id="recentRows"></tbody>
-        </table>
-      </article>
-    </section>
-  </main>
+  <section class="two" style="margin-top:14px">
+    <article class="table-card">
+      <h2>按天趋势</h2>
+      <table>
+        <thead><tr><th>日期</th><th class="num">PV</th><th class="num">访问 UV</th><th class="num">参与 UV</th><th class="num">完成 UV</th></tr></thead>
+        <tbody id="trendRows"></tbody>
+      </table>
+    </article>
 
-  <script>
-    window.ACADEMIC_COMPASS_MONITOR_SOURCE = "";
-  </script>
-  <script>
-    const sourceInput = document.querySelector("#sourceInput");
-    const loadBtn = document.querySelector("#loadBtn");
-    const localBtn = document.querySelector("#localBtn");
-    const statusText = document.querySelector("#statusText");
+    <article class="table-card">
+      <h2>准确性反馈</h2>
+      <p class="table-note" id="feedbackNote">来自结果页的「测试结果是否符合你本人」。</p>
+      <table>
+        <thead><tr><th>选项</th><th class="num">份数</th><th class="num">占比</th></tr></thead>
+        <tbody id="feedbackRows"></tbody>
+      </table>
+    </article>
+  </section>
 
-    const savedSource = localStorage.getItem("academicCompassMonitorSource.v1") || window.ACADEMIC_COMPASS_MONITOR_SOURCE || new URLSearchParams(location.search).get("source") || "";
-    sourceInput.value = savedSource;
+  <section class="table-card" style="margin-top:14px">
+    <h2>最近事件</h2>
+    <table>
+      <thead><tr><th>时间</th><th>事件</th><th>详情</th><th>访客</th></tr></thead>
+      <tbody id="recentRows"></tbody>
+    </table>
+  </section>
+  </div>
 
-    loadBtn.addEventListener("click", () => loadRemoteData(sourceInput.value.trim()));
-    localBtn.addEventListener("click", () => renderDashboard(loadLocalEvents(), "本机 localStorage 数据"));
+  <section class="table-card" id="localPanel" hidden>
+    <h2>本机调试数据</h2>
+    <p class="table-note">
+      这里读的是当前浏览器自己攒下的事件，只在没有走完第 4～6 步部署前用来看埋点有没有触发。
+      数字不代表线上真实数据。想要真实统计，请填好采集端地址后点「读取远端数据」。
+    </p>
+    <table>
+      <thead><tr><th>事件类型</th><th class="num">条数</th><th class="num">涉及访客 UV</th></tr></thead>
+      <tbody id="localRows"></tbody>
+    </table>
+  </section>
 
-    if (savedSource) loadRemoteData(savedSource);
-    else renderDashboard(loadLocalEvents(), "本机 localStorage 数据");
+  <footer>
+    本页可直接双击打开，也可部署到 GitHub Pages 后用网址访问。数据实时来自 Google Sheet，无中间服务器。<br>
+    口径提示：UV 去重依据是浏览器里长期保存的访客 ID，属设备级去重，不按天重置，也不等于自然人。
+  </footer>
+</main>
 
-    async function loadRemoteData(source) {
-      if (!source) {
-        statusText.textContent = "请先填写数据源地址。";
+<script>
+(function () {
+  "use strict";
+
+  var LS_KEY = "academicCompassMonitor.v2";
+  var CALLBACK = "academicCompassMonitorCb";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
+  function pct(value) {
+    var n = Number(value);
+    return isFinite(n) ? n.toFixed(1).replace(/\.0$/, "") + "%" : "–";
+  }
+
+  function num(value) {
+    var n = Number(value);
+    return isFinite(n) ? String(n) : "–";
+  }
+
+  function readConfig() {
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { saved = {}; }
+    var qs = new URLSearchParams(location.search);
+    return {
+      source: saved.source || qs.get("source") || "",
+      token: saved.token || qs.get("token") || "",
+      since: saved.since || qs.get("since") || "",
+      until: saved.until || qs.get("until") || ""
+    };
+  }
+
+  function writeConfig() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        source: $("sourceInput").value.trim(),
+        token: $("tokenInput").value.trim(),
+        since: $("sinceInput").value,
+        until: $("untilInput").value
+      }));
+    } catch (e) { /* 忽略 */ }
+  }
+
+  function setStatus(text, kind) {
+    var el = $("status");
+    el.textContent = text;
+    el.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function jsonp(source, params, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var query = new URLSearchParams(params);
+      query.set("callback", CALLBACK);
+      var url = source + (source.indexOf("?") >= 0 ? "&" : "?") + query.toString();
+      var script = document.createElement("script");
+      var timer = setTimeout(function () { cleanup(); reject(new Error("请求超时，请检查采集端地址与部署权限是否为「任何人」")); }, timeoutMs || 30000);
+
+      function cleanup() {
+        clearTimeout(timer);
+        delete window[CALLBACK];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[CALLBACK] = function (data) { cleanup(); resolve(data); };
+      script.onerror = function () { cleanup(); reject(new Error("脚本加载失败，地址可能不对，或尚未部署为 Web 应用")); };
+      script.src = url;
+      document.head.appendChild(script);
+    });
+  }
+
+  function rowsOrEmpty(rows, colspan, render) {
+    if (!rows || !rows.length) return '<tr><td class="empty" colspan="' + colspan + '">暂无数据</td></tr>';
+    return rows.map(render).join("");
+  }
+
+  function barCell(ratio) {
+    var width = Math.max(0, Math.min(100, Number(ratio) || 0));
+    return '<div class="bar" title="' + width + '%"><i style="width:' + width + '%"></i></div>';
+  }
+
+  function render(s) {
+    var sum = s.summary;
+
+    $("remoteSections").hidden = false;
+    $("localPanel").hidden = true;
+
+    $("kpiPv").textContent = num(sum.pv);
+    $("kpiPvSub").textContent = "共 " + num(sum.pv) + " 次首页加载";
+
+    $("kpiViewUv").textContent = num(sum.viewUv);
+    $("kpiViewUvSub").textContent = "参与率 " + pct(sum.participateRate) + "（参与÷访问）";
+
+    $("kpiTestUv").textContent = num(sum.testUv);
+    $("kpiTestUvSub").textContent = "作答事件 " + num(sum.answerCount) + " 次";
+
+    $("kpiCompleteUv").textContent = num(sum.completeUv);
+    $("kpiCompleteUvSub").textContent = "流失 " + num(Math.max(sum.testUv - sum.completeUv, 0)) + " 人未完成";
+
+    $("kpiCompleteRate").textContent = pct(sum.completeRate);
+
+    $("resultActionRows").innerHTML = rowsOrEmpty(sum.resultActions, 5, function (row) {
+      return "<tr><td>" + esc(row.label) + "</td>" +
+        '<td class="num">' + num(row.uv) + "</td>" +
+        '<td class="num">' + num(row.count) + "</td>" +
+        '<td class="num">' + pct(row.rate) + "</td>" +
+        '<td class="num">' + barCell(row.rate) + "</td></tr>";
+    });
+
+    $("viewRows").innerHTML = rowsOrEmpty(sum.views, 5, function (row) {
+      var tag = row.unreachable ? '<span class="tag warn">页面无入口</span>' : "";
+      return "<tr><td>" + esc(row.label) + tag + "</td>" +
+        '<td class="num">' + num(row.clickUv) + "</td>" +
+        '<td class="num">' + num(row.clickCount) + "</td>" +
+        '<td class="num">' + num(row.arrivalUv) + "</td>" +
+        '<td class="num">' + pct(row.rate) + "</td></tr>";
+    });
+
+    $("typeRows").innerHTML = rowsOrEmpty(sum.types, 3, function (row) {
+      return "<tr><td>" + esc(row.label) + "</td>" +
+        '<td class="num">' + num(row.uv) + "</td>" +
+        '<td class="num">' + pct(row.share) + "</td></tr>";
+    });
+
+    $("sourceRows").innerHTML = rowsOrEmpty(sum.sources, 3, function (row) {
+      return "<tr><td>" + esc(row.label) + "</td>" +
+        '<td class="num">' + num(row.uv) + "</td>" +
+        '<td class="num">' + pct(row.share) + "</td></tr>";
+    });
+
+    $("trendRows").innerHTML = rowsOrEmpty(s.trend, 5, function (row) {
+      return "<tr><td>" + esc(row.day) + "</td>" +
+        '<td class="num">' + num(row.pv) + "</td>" +
+        '<td class="num">' + num(row.visitUv) + "</td>" +
+        '<td class="num">' + num(row.testUv) + "</td>" +
+        '<td class="num">' + num(row.completeUv) + "</td></tr>";
+    });
+
+    var feedback = sum.feedback || { total: 0, rows: [] };
+    $("feedbackNote").textContent = feedback.total
+      ? "共 " + feedback.total + " 份反馈。"
+      : "还没有收到反馈。该表由结果页的表单写入，与埋点表分开存放。";
+    $("feedbackRows").innerHTML = rowsOrEmpty(feedback.rows, 3, function (row) {
+      return "<tr><td>" + esc(row.label) + "</td>" +
+        '<td class="num">' + num(row.count) + "</td>" +
+        '<td class="num">' + pct(row.share) + "</td></tr>";
+    });
+
+    $("recentRows").innerHTML = rowsOrEmpty(s.recent, 4, function (row) {
+      var when = String(row.createdAt || "").replace("T", " ").slice(0, 19);
+      return "<tr><td>" + esc(when) + "</td><td>" + esc(row.event) + "</td>" +
+        "<td>" + esc(row.detail || "") + "</td><td>" + esc(row.visitorId || "") + "</td></tr>";
+    });
+  }
+
+  function loadRemote() {
+    var cfg = currentConfig();
+    if (!cfg.source) { setStatus("请先填写采集端地址。", "warn"); return; }
+    if (!cfg.token) { setStatus("请先填写管理口令。", "warn"); return; }
+    writeConfig();
+    setStatus("正在读取远端数据…");
+
+    var params = { mode: "summary", token: cfg.token, nocache: "1" };
+    if (cfg.since) params.since = cfg.since;
+    if (cfg.until) params.until = cfg.until;
+
+    jsonp(cfg.source, params).then(function (data) {
+      if (!data || !data.ok) {
+        var message = (data && (data.message || data.error)) || "未知错误";
+        setStatus("读取失败：" + message, "err");
         return;
       }
-      localStorage.setItem("academicCompassMonitorSource.v1", source);
-      statusText.textContent = "正在加载远程数据...";
-      try {
-        const response = await fetch(source, { cache: "no-store" });
-        const text = await response.text();
-        const events = source.includes("mode=analytics-json") || text.trim().startsWith("{")
-          ? normalizeJsonEvents(JSON.parse(text))
-          : parseCsvEvents(text);
-        renderDashboard(events, `远程数据：${events.length} 条事件`);
-      } catch (error) {
-        statusText.textContent = `远程数据加载失败：${error.message}。可检查 Sheet 是否已发布为 CSV。`;
+      render(data);
+      var range = data.range && (data.range.since || data.range.until)
+        ? "（" + (data.range.since || "最早") + " 至 " + (data.range.until || "最新") + "）"
+        : "（全部时间）";
+      setStatus("已是实时数据" + range + "。刷新于 " + new Date(data.generatedAt || Date.now()).toLocaleString(), "ok");
+    }).catch(function (error) {
+      setStatus("读取失败：" + error.message, "err");
+    });
+  }
+
+  function loadLocal() {
+    var events;
+    try {
+      events = JSON.parse(localStorage.getItem("academicCompassAnalyticsEvents.v1")) || [];
+    } catch (error) {
+      events = [];
+    }
+    if (!events.length) {
+      setStatus("本机没有调试数据。请先在浏览器里打开测试页走一遍流程，或改用「读取远端数据」。", "warn");
+      return;
+    }
+
+    var seen = {};
+    var counts = {};
+    var visitors = {};
+    var eventUv = {};
+    for (var i = 0; i < events.length; i += 1) {
+      var ev = events[i];
+      if (ev.eventId) {
+        if (seen[ev.eventId]) continue;
+        seen[ev.eventId] = true;
+      }
+      var name = ev.analyticsEvent || "未知";
+      counts[name] = (counts[name] || 0) + 1;
+      if (ev.visitorId) {
+        visitors[ev.visitorId] = true;
+        if (!eventUv[name]) eventUv[name] = {};
+        eventUv[name][ev.visitorId] = true;
       }
     }
 
-    function loadLocalEvents() {
-      try {
-        return JSON.parse(localStorage.getItem("academicCompassAnalyticsEvents.v1")) || [];
-      } catch (error) {
-        return [];
-      }
-    }
+    var labels = {
+      page_view: "页面访问", test_start: "开始测试", question_answer: "作答",
+      test_complete: "完成测试", view_show: "进入页面", tab_click: "Tab 点击",
+      button_click: "按钮点击", result_action_click: "结果页操作", share_confirm: "确认分享"
+    };
 
-    function normalizeJsonEvents(data) {
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data.events)) return data.events;
-      return [];
-    }
+    var order = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+    $("localRows").innerHTML = order.map(function (name) {
+      return "<tr><td>" + esc(labels[name] || name) +
+        '<span class="tag ok">' + esc(name) + "</span></td>" +
+        '<td class="num">' + num(counts[name]) + "</td>" +
+        '<td class="num">' + num(Object.keys(eventUv[name] || {}).length) + "</td></tr>";
+    }).join("");
 
-    function parseCsvEvents(csvText) {
-      const rows = parseCsv(csvText);
-      if (rows.length < 2) return [];
-      const headers = rows[0];
-      return rows.slice(1).filter((row) => row.some(Boolean)).map((row) => {
-        const item = {};
-        headers.forEach((header, index) => {
-          item[header] = row[index] || "";
-        });
-        return item;
-      });
-    }
+    $("remoteSections").hidden = true;
+    $("localPanel").hidden = false;
+    setStatus("已载入本机调试数据：" + events.length + " 条原始事件，去重后 " +
+      Object.keys(seen).length + " 条，来自 " + Object.keys(visitors).length + " 个访客。仅用于确认埋点是否触发。", "warn");
+  }
 
-    function parseCsv(text) {
-      const rows = [];
-      let row = [];
-      let value = "";
-      let inQuotes = false;
-      for (let i = 0; i < text.length; i += 1) {
-        const char = text[i];
-        const next = text[i + 1];
-        if (char === '"' && inQuotes && next === '"') {
-          value += '"';
-          i += 1;
-        } else if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === "," && !inQuotes) {
-          row.push(value);
-          value = "";
-        } else if ((char === "\n" || char === "\r") && !inQuotes) {
-          if (char === "\r" && next === "\n") i += 1;
-          row.push(value);
-          rows.push(row);
-          row = [];
-          value = "";
-        } else {
-          value += char;
-        }
-      }
-      if (value || row.length) {
-        row.push(value);
-        rows.push(row);
-      }
-      return rows;
-    }
+  function sendTestEvent() {
+    var cfg = currentConfig();
+    if (!cfg.source) { setStatus("请先填写采集端地址。", "warn"); return; }
+    var payload = {
+      eventName: "academic_compass_analytics",
+      analyticsEvent: "page_view",
+      eventId: "EV-SELFTEST-" + Date.now(),
+      createdAt: new Date().toISOString(),
+      visitorId: "V-SELFTEST",
+      sessionId: "S-SELFTEST",
+      viewId: "home",
+      pageUrl: location.href,
+      path: location.pathname,
+      referrer: "monitor-selftest",
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      viewport: window.innerWidth + "x" + window.innerHeight,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      extraJson: "{}"
+    };
+    setStatus("正在发送测试事件…");
+    fetch(cfg.source, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    }).then(function () {
+      setStatus("测试事件已发出。稍等 5 秒后点「读取远端数据」，若 PV 增加 1 即说明写入成功。", "ok");
+    }).catch(function (error) {
+      setStatus("发送失败：" + error.message, "err");
+    });
+  }
 
-    function renderDashboard(events, sourceLabel) {
-      const normalized = events.map(normalizeEvent).filter((event) => event.analyticsEvent);
-      const pageViews = normalized.filter((event) => event.analyticsEvent === "page_view");
-      const visitors = unique(normalized.map((event) => event.visitorId).filter(Boolean));
-      const participantEvents = normalized.filter((event) => ["test_start", "question_answer", "test_complete"].includes(event.analyticsEvent));
-      const participants = unique(participantEvents.map((event) => event.visitorId).filter(Boolean));
-      const completes = unique(normalized.filter((event) => event.analyticsEvent === "test_complete").map((event) => event.visitorId).filter(Boolean));
+  function currentConfig() {
+    return {
+      source: $("sourceInput").value.trim(),
+      token: $("tokenInput").value.trim(),
+      since: $("sinceInput").value,
+      until: $("untilInput").value
+    };
+  }
 
-      setText("pvMetric", pageViews.length);
-      setText("uvMetric", visitors.length);
-      setText("testUvMetric", participants.length);
-      setText("completeUvMetric", completes.length);
+  var config = readConfig();
+  $("sourceInput").value = config.source;
+  $("tokenInput").value = config.token;
+  $("sinceInput").value = config.since;
+  $("untilInput").value = config.until;
 
-      renderGroupedRows("resultActionRows", groupEvents(normalized.filter((event) => event.analyticsEvent === "result_action_click" || event.analyticsEvent === "share_confirm"), "buttonText", "buttonId"));
-      renderGroupedRows("tabRows", groupEvents(normalized.filter((event) => event.analyticsEvent === "tab_click"), "targetView", "targetView"));
-      renderTypeRows(normalized.filter((event) => event.analyticsEvent === "test_complete"));
-      renderRecentRows(normalized);
+  $("loadRemoteBtn").addEventListener("click", loadRemote);
+  $("loadLocalBtn").addEventListener("click", loadLocal);
+  $("sendTestBtn").addEventListener("click", sendTestEvent);
+  $("saveConfigBtn").addEventListener("click", function () {
+    writeConfig();
+    setStatus("已保存到本机浏览器。下次打开自动带出。", "ok");
+  });
+  $("toggleConfigBtn").addEventListener("click", function () {
+    var body = $("configBody");
+    var hidden = body.style.display === "none";
+    body.style.display = hidden ? "" : "none";
+    $("toggleConfigBtn").textContent = hidden ? "收起" : "展开";
+  });
 
-      statusText.textContent = `${sourceLabel}。当前可统计事件 ${normalized.length} 条。`;
-    }
-
-    function normalizeEvent(event) {
-      return {
-        analyticsEvent: event.analyticsEvent || event["事件类型"] || "",
-        eventId: event.eventId || event["事件ID"] || "",
-        createdAt: event.createdAt || event["时间"] || "",
-        visitorId: event.visitorId || event["访客ID"] || "",
-        sessionId: event.sessionId || event["会话ID"] || "",
-        viewId: event.viewId || event["页面"] || "",
-        buttonId: event.buttonId || event["按钮ID"] || "",
-        buttonText: event.buttonText || event["按钮文案"] || "",
-        targetView: event.targetView || event["目标页面"] || "",
-        typeCode: event.typeCode || event["结果代码"] || "",
-        typeName: event.typeName || event["结果名称"] || ""
-      };
-    }
-
-    function unique(items) {
-      return Array.from(new Set(items));
-    }
-
-    function groupEvents(events, labelKey, fallbackKey) {
-      const groups = new Map();
-      events.forEach((event) => {
-        const label = event[labelKey] || event[fallbackKey] || "未命名";
-        if (!groups.has(label)) groups.set(label, { label, total: 0, visitors: new Set() });
-        const group = groups.get(label);
-        group.total += 1;
-        if (event.visitorId) group.visitors.add(event.visitorId);
-      });
-      return Array.from(groups.values())
-        .map((group) => ({ label: group.label, uv: group.visitors.size, total: group.total }))
-        .sort((a, b) => b.total - a.total);
-    }
-
-    function renderGroupedRows(targetId, rows) {
-      const target = document.querySelector(`#${targetId}`);
-      target.innerHTML = rows.length
-        ? rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${row.uv}</td><td>${row.total}</td></tr>`).join("")
-        : `<tr><td colspan="3">暂无数据</td></tr>`;
-    }
-
-    function renderTypeRows(completeEvents) {
-      const totalVisitors = unique(completeEvents.map((event) => event.visitorId).filter(Boolean)).length || completeEvents.length || 1;
-      const grouped = groupEvents(completeEvents, "typeName", "typeCode");
-      const target = document.querySelector("#typeRows");
-      target.innerHTML = grouped.length
-        ? grouped.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${row.uv || row.total}</td><td>${Math.round(((row.uv || row.total) / totalVisitors) * 100)}%</td></tr>`).join("")
-        : `<tr><td colspan="3">暂无数据</td></tr>`;
-    }
-
-    function renderRecentRows(events) {
-      const target = document.querySelector("#recentRows");
-      const recent = [...events].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 12);
-      target.innerHTML = recent.length
-        ? recent.map((event) => `<tr><td>${escapeHtml(formatDate(event.createdAt))}</td><td>${escapeHtml(event.analyticsEvent)}</td><td>${escapeHtml(event.visitorId || "-")}</td></tr>`).join("")
-        : `<tr><td colspan="3">暂无数据</td></tr>`;
-    }
-
-    function setText(id, value) {
-      document.querySelector(`#${id}`).textContent = String(value);
-    }
-
-    function formatDate(value) {
-      if (!value) return "-";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString("zh-CN", { hour12: false });
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-      })[char]);
-    }
-  </script>
+  if (config.source && config.token) loadRemote();
+})();
+</script>
 </body>
 </html>
